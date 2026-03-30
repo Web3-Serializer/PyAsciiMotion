@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyasciimotion"
-version = "0.1.0"
+version = "0.1.1"
 description = "Load and play ASCII Motion animations in your terminal"
 readme = "README.md"
 license = "MIT"
