@@ -163,13 +163,22 @@ def _parse_content_rows(
     return cells
 
 
+def _maybe_parse_json_string(val: Any) -> Any:
+    if isinstance(val, str) and val.startswith("{"):
+        try:
+            return json.loads(val)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return val
+
+
 def _resolve_color_dict(colors: dict[str, Any]) -> dict[tuple[int, int, str], str]:
     result: dict[tuple[int, int, str], str] = {}
     if not colors:
         return result
 
-    fg_map = colors.get("foreground")
-    bg_map = colors.get("background")
+    fg_map = _maybe_parse_json_string(colors.get("foreground"))
+    bg_map = _maybe_parse_json_string(colors.get("background"))
 
     if fg_map and isinstance(fg_map, dict):
         for key, val in fg_map.items():
@@ -206,19 +215,25 @@ def _resolve_color_dict(colors: dict[str, Any]) -> dict[tuple[int, int, str], st
 def _parse_export_json(doc: dict[str, Any], name: str) -> Animation:
     canvas = doc.get("canvas", {})
     anim_cfg = doc.get("animation", {})
+    metadata = doc.get("metadata", {})
 
     width = canvas.get("width", doc.get("width", 80))
     height = canvas.get("height", doc.get("height", 24))
     frame_rate = anim_cfg.get("frameRate", doc.get("frameRate", doc.get("fps", 12)))
     loop = anim_cfg.get("looping", doc.get("loop", True))
 
+    resolved_name = metadata.get("title", doc.get("name", name))
+
     meta = AnimationMeta(
-        name=doc.get("name", name),
+        name=resolved_name,
+        version=metadata.get("exportVersion", ""),
+        app_version=metadata.get("appVersion", ""),
         frame_rate=frame_rate,
         loop=loop,
         width=width,
         height=height,
         background_color=canvas.get("backgroundColor"),
+        created_at=metadata.get("exportedAt"),
     )
 
     color_dict = doc.get("colorDict", doc.get("colors", {}))
@@ -226,13 +241,16 @@ def _parse_export_json(doc: dict[str, Any], name: str) -> Animation:
 
     for raw_frame in doc["frames"]:
         content = raw_frame.get("content")
+        content_string = raw_frame.get("contentString")
         rows = raw_frame.get("rows")
 
-        if content is not None or rows is not None:
+        if content is not None or content_string is not None or rows is not None:
             if isinstance(content, str):
                 row_data = content.split("\n")
             elif isinstance(content, list):
                 row_data = content
+            elif isinstance(content_string, str):
+                row_data = content_string.split("\n")
             elif isinstance(rows, list):
                 row_data = rows
             else:

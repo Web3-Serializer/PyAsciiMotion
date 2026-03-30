@@ -514,6 +514,83 @@ class TestRealExportFormat:
         assert anim.get_frame(0).cell_at(2, 0).char == "X"
         assert anim.get_frame(0).cell_at(2, 0).fg == "#ff0000"
 
+    def test_stringified_json_foreground(self):
+        doc = {
+            "canvas": {"width": 5, "height": 2},
+            "animation": {"frameRate": 10, "looping": True},
+            "frames": [
+                {
+                    "content": "AB\nCD",
+                    "colors": {
+                        "foreground": json.dumps({"0,0": "#ff0000", "1,0": "#00ff00"}),
+                    },
+                }
+            ],
+        }
+        anim = loads(json.dumps(doc))
+        assert anim.get_frame(0).cell_at(0, 0).fg == "#ff0000"
+        assert anim.get_frame(0).cell_at(1, 0).fg == "#00ff00"
+
+    def test_stringified_json_background(self):
+        doc = {
+            "canvas": {"width": 5, "height": 2},
+            "animation": {"frameRate": 10, "looping": True},
+            "frames": [
+                {
+                    "content": "AB\nCD",
+                    "colors": {
+                        "foreground": json.dumps({"0,0": "#ff0000"}),
+                        "background": json.dumps({"0,0": "#333333"}),
+                    },
+                }
+            ],
+        }
+        anim = loads(json.dumps(doc))
+        assert anim.get_frame(0).cell_at(0, 0).fg == "#ff0000"
+        assert anim.get_frame(0).cell_at(0, 0).bg == "#333333"
+
+    def test_content_as_list(self):
+        doc = {
+            "canvas": {"width": 5, "height": 2},
+            "animation": {"frameRate": 10, "looping": True},
+            "frames": [
+                {
+                    "content": ["AB", "CD"],
+                    "colors": {"foreground": {"0,0": "#aabbcc"}},
+                }
+            ],
+        }
+        anim = loads(json.dumps(doc))
+        assert anim.get_frame(0).cell_at(0, 0).char == "A"
+        assert anim.get_frame(0).cell_at(0, 0).fg == "#aabbcc"
+        assert anim.get_frame(0).cell_at(1, 1).char == "D"
+
+    def test_content_string_fallback(self):
+        doc = {
+            "canvas": {"width": 3, "height": 1},
+            "animation": {"frameRate": 10, "looping": True},
+            "frames": [
+                {
+                    "contentString": "XYZ",
+                    "colors": {"foreground": {"1,0": "#112233"}},
+                }
+            ],
+        }
+        anim = loads(json.dumps(doc))
+        assert anim.get_frame(0).cell_at(1, 0).char == "Y"
+        assert anim.get_frame(0).cell_at(1, 0).fg == "#112233"
+
+    def test_metadata_title(self):
+        doc = {
+            "metadata": {"title": "My Animation", "appVersion": "2.0.14"},
+            "canvas": {"width": 5, "height": 2},
+            "animation": {"frameRate": 12, "looping": True},
+            "frames": [{"content": "AB\nCD", "colors": {}}],
+        }
+        anim = loads(json.dumps(doc))
+        assert anim.meta.name == "My Animation"
+        assert anim.meta.app_version == "2.0.14"
+
 
 class TestFileRoundTrip:
     def test_write_and_read_session(self, tmp_path):
